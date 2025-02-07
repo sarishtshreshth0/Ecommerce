@@ -4,7 +4,12 @@ import random
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from flask import Flask, render_template, request ,session , redirect
+from flask_mail import Mail, Message
+import random
 
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 uri = "mongodb+srv://sarishtshreshth:rvhs2017@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri, server_api=ServerApi('1'))
 try:
@@ -35,7 +40,8 @@ def login():
             check = db_user.find_one({"email":email, "password":password})
             if check:
                 session['username'] = email
-                return "<h1>Logged in!</h1>"
+                session['Login'] = True
+                return redirect("/")
             else:
                 return redirect("/login")
         else:
@@ -46,6 +52,7 @@ def login():
 def signup():
     if request.method == "POST" :
         first = request.form['first']
+        session['name'] = first
         last = request.form['last']
         m_number = request.form['m_number']
         email = request.form['email']
@@ -103,5 +110,19 @@ def verify():
     result = send_otp()
     print("Generated OTP:", result)
     return render_template("verify_otp.html")
+
+@app.route("/reset-password", methods=['GET', 'POST'])
+def reset_password():
+    return render_template("reset_password.html")
+
+@app.route("/",methods = ['GET', 'POST'])
+def home():
+    name = db_user.find_one({"email":session.get('username')})
+    if name:
+        name = name["first"].title()
+    else:
+        name = "Login"
+    return render_template("index.html",name = name)
+
 if __name__ == '__main__':
     app.run(debug=True)
