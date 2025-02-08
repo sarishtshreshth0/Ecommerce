@@ -155,6 +155,17 @@ def listraised():
     print(list_raised)
     return render_template("show_raised.html" , raised = list_raised)
 
+@app.route("/setting")
+def setting():
+    name = session['name'].title()
+    data = db_user.find_one({"email":session.get('username')})
+    last_name = data["last"].title()
+    email = session.get('username')
+    m_number = data["m_number"]
+    return render_template("Profile_setting.html",first = name, last = last_name,email = email, m_number = m_number)
 
+@app.route("/giftcard",methods = ['GET', 'POST'])
+def giftcard():
+    return render_template("gift_card.html")
 if __name__ == '__main__':
     app.run(debug=True)
