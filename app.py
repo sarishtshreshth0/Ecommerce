@@ -23,9 +23,9 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = 'sarishtshreshth@gmail.com'
-app.config['MAIL_PASSWORD'] = "gacy ailv zvys jlae"
-app.config['MAIL_DEFAULT_SENDER'] = 'sarishtshreshth@gmail.com'
+app.config['MAIL_USERNAME'] = 'saristhshreshth12@gmail.com'
+app.config['MAIL_PASSWORD'] = "emyx zmzd afjf keqh"
+app.config['MAIL_DEFAULT_SENDER'] = 'saristhshreshth12@gmail.com'
 mail = Mail(app)
 
 db = client['ecommerce']
@@ -40,7 +40,6 @@ def login():
             check = db_user.find_one({"email":email, "password":password})
             if check:
                 session['username'] = email
-                session['Login'] = True
                 return redirect("/")
             else:
                 return redirect("/login")
@@ -122,7 +121,24 @@ def home():
         name = name["first"].title()
     else:
         name = "Login"
+    session['name'] = name
     return render_template("index.html",name = name)
+
+@app.route("/contact",methods = ['GET', 'POST'])
+def contact():
+    if request.method == "POST":
+        message = request.form['message']
+        msg = Message(
+            subject="Ecommerce Project",
+            recipients=[session['username']],
+            body= message
+        )
+        mail.send(msg)
+    name = session.get('name', 'Login')
+    email = session.get('username', "Login")
+    return render_template("contact_us.html",name = name , email = email)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
