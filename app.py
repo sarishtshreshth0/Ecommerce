@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request ,session , redirect
 from flask_mail import Mail, Message
 import random
+from datetime import date
+
+today = date.today().strftime("%Y-%m-%d")
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -31,6 +34,7 @@ mail = Mail(app)
 db = client['ecommerce']
 db_user = db['user']
 db_otp = db['otp']
+db_contact = db['contact']
 @app.route('/login',methods = ['GET', 'POST'])
 def login():
     if request.method == "POST" :
@@ -134,10 +138,22 @@ def contact():
             body= message
         )
         mail.send(msg)
+        db_contact.insert_one({"Id": session['username'],"issue": message ,"status": 'Pending', "raiseBy":session.get('name') , 'date' : today})
+        return redirect("/ticketraise")
     name = session.get('name', 'Login')
     email = session.get('username', "Login")
     return render_template("contact_us.html",name = name , email = email)
 
+@app.route("/ticketraise",methods = ['GET', 'POST'])
+def ticket():
+    Id = db_contact.count_documents({})
+    return render_template("ticket_raised.html" , Id = Id)
+
+@app.route("/raisedlist",methods = ['GET', 'POST'])
+def listraised():
+    list_raised = [i for i in db_contact.find({"Id":session.get('username')})]
+    print(list_raised)
+    return render_template("show_raised.html" , raised = list_raised)
 
 
 if __name__ == '__main__':
