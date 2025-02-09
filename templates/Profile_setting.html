@@ -164,63 +164,65 @@
         <a href="#"><i class="fas fa-box"></i>My Orders</a>
         <a href="#"><i class="fas fa-cog"></i>Account Settings</a>
         <a href="#"><i class="fas fa-user"></i>Profile Information</a>
-        <a href="#"><i class="fas fa-map-marker-alt"></i>Manage Addresses</a>
+        <a href="/address"><i class="fas fa-map-marker-alt"></i>Manage Addresses</a>
         <a href="#"><i class="fas fa-id-card"></i>PAN Card Information</a>
         <a href="#"><i class="fas fa-credit-card"></i>Payments</a>
         <a href="#"><i class="fas fa-gift"></i>Gift Cards</a>
         <a href="#"><i class="fas fa-wallet"></i>Saved UPI</a>
         <a href="#"><i class="fas fa-credit-card"></i>Saved Cards</a>
     </div>
-
-    <div class="content">
+<div class="content">
         <div class="profile-section">
-            <h2>Personal Information <button class="edit-btn">Edit Profile</button></h2>
+            <h2>Personal Information</h2>
 
-            <div class="input-group">
-                <label>First Name</label>
-                <input type="text" value="{{first}}" disabled>
-            </div>
+            <form action="{{ url_for('setting') }}" method="POST">
+                {% if edit_mode %}
+                    <input type="hidden" name="save_mode" value="1">
+                {% endif %}
 
-            <div class="input-group">
-                <label>Last Name</label>
-                <input type="text" value="{{last}}" disabled>
-            </div>
+                <div class="input-group">
+                    <label>First Name</label>
+                    <input type="text" name="first_name" value="{{ first }}" {% if not edit_mode %}disabled{% endif %}>
+                </div>
 
-            <div class="input-group">
-                <label>Your Gender</label>
-                <div class="gender-options">
-                    <div class="gender-option">
-                        <input type="radio" id="male" name="gender" disabled>
-                        <label for="male">Male</label>
+                <div class="input-group">
+                    <label>Last Name</label>
+                    <input type="text" name="last_name" value="{{ last }}" {% if not edit_mode %}disabled{% endif %}>
+                </div>
+
+                <div class="input-group">
+                    <label>Your Gender</label>
+                    <div class="gender-options">
+                        <div class="gender-option">
+                            <input type="radio" id="male" name="gender" value="Male" {% if gender == 'Male' %}checked{% endif %} {% if not edit_mode %}disabled{% endif %}>
+                            <label for="male">Male</label>
+                        </div>
+                        <div class="gender-option">
+                            <input type="radio" id="female" name="gender" value="Female" {% if gender == 'Female' %}checked{% endif %} {% if not edit_mode %}disabled{% endif %}>
+                            <label for="female">Female</label>
+                        </div>
                     </div>
-                    <div class="gender-option">
-                        <input type="radio" id="female" name="gender" disabled>
-                        <label for="female">Female</label>
-                    </div>
                 </div>
-            </div>
 
-            <div class="input-group">
-                <label>Email Address</label>
-                <input type="email" value="{{email}}" disabled>
-            </div>
-
-            <div class="input-group">
-                <label>Mobile Number</label>
-                <input type="text" value="{{m_number}}" disabled>
-            </div>
-
-            <div class="faqs-section">
-                <h3>FAQs</h3>
-                <div class="faq-item">
-                    <h4>How do I change my password?</h4>
-                    <p>Visit account security settings to update your password.</p>
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" value="{{ email }}" {% if not edit_mode %}disabled{% endif %}>
                 </div>
-                <div class="faq-item">
-                    <h4>Can I have multiple addresses?</h4>
-                    <p>Yes, you can add up to 5 addresses in your account.</p>
+
+                <div class="input-group">
+                    <label>Mobile Number</label>
+                    <input type="text" name="m_number" value="{{ m_number }}" {% if not edit_mode %}disabled{% endif %}>
                 </div>
-            </div>
+
+                <div class="btn-group">
+                    {% if not edit_mode %}
+                        <button type="submit" name="edit_mode" value="1" class="edit-btn">Edit Profile</button>
+                    {% else %}
+                        <button type="submit" class="save-btn">Save Changes</button>
+                        <a href="{{ url_for('setting') }}" class="cancel-btn">Cancel</a>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 </body>
