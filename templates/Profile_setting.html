@@ -66,14 +66,15 @@
             max-width: 800px;
         }
 
-        .profile-section {
+        .profile-section, .orders-section, .account-settings-section, .address-section, .pan-card-section, .payments-section, .gift-cards-section, .saved-upi-section, .saved-cards-section {
             background: white;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: none; /* Hide all sections by default */
         }
 
-        .profile-section h2 {
+        .profile-section h2, .orders-section h2, .account-settings-section h2, .address-section h2, .pan-card-section h2, .payments-section h2, .gift-cards-section h2, .saved-upi-section h2, .saved-cards-section h2 {
             color: var(--text-dark);
             margin-bottom: 30px;
             display: flex;
@@ -161,20 +162,19 @@
 <body>
     <div class="sidebar">
         <h3>Welcome, {{first}} 👋</h3>
-        <a href="#"><i class="fas fa-box"></i>My Orders</a>
-        <a href="#"><i class="fas fa-cog"></i>Account Settings</a>
-        <a href="#"><i class="fas fa-user"></i>Profile Information</a>
-        <a href="/address"><i class="fas fa-map-marker-alt"></i>Manage Addresses</a>
-        <a href="#"><i class="fas fa-id-card"></i>PAN Card Information</a>
-        <a href="#"><i class="fas fa-credit-card"></i>Payments</a>
-        <a href="#"><i class="fas fa-gift"></i>Gift Cards</a>
-        <a href="#"><i class="fas fa-wallet"></i>Saved UPI</a>
-        <a href="#"><i class="fas fa-credit-card"></i>Saved Cards</a>
+        <a href="#" id="orders-link"><i class="fas fa-box"></i>My Orders</a>
+        <a href="#" id="account-settings-link"><i class="fas fa-cog"></i>Account Settings</a>
+        <a href="#" id="profile-link"><i class="fas fa-user"></i>Profile Information</a>
+        <a href="#" id="address-link"><i class="fas fa-map-marker-alt"></i>Manage Addresses</a>
+        <a href="#" id="pan-card-link"><i class="fas fa-id-card"></i>PAN Card Information</a>
+        <a href="#" id="payments-link"><i class="fas fa-credit-card"></i>Payments</a>
+        <a href="#" id="gift-cards-link"><i class="fas fa-gift"></i>Gift Cards</a>
+        <a href="#" id="saved-upi-link"><i class="fas fa-wallet"></i>Saved UPI</a>
+        <a href="#" id="saved-cards-link"><i class="fas fa-credit-card"></i>Saved Cards</a>
     </div>
-<div class="content">
-        <div class="profile-section">
+    <div class="content">
+        <div class="profile-section" id="profile-section">
             <h2>Personal Information</h2>
-
             <form action="{{ url_for('setting') }}" method="POST">
                 {% if edit_mode %}
                     <input type="hidden" name="save_mode" value="1">
@@ -224,6 +224,117 @@
                 </div>
             </form>
         </div>
+
+        <div class="orders-section" id="orders-section">
+            <h2>My Orders</h2>
+            <!-- Add your orders content here -->
+            <p>Your orders will be displayed here.</p>
+        </div>
+
+        <div class="account-settings-section" id="account-settings-section">
+            <h2>Account Settings</h2>
+            <!-- Add your account settings content here -->
+            <p>Account settings will be displayed here.</p>
+        </div>
+
+        <div class="address-section" id="address-section">
+            <h2>Manage Addresses</h2>
+            <!-- Add your address management content here -->
+            <p>Manage your addresses here.</p>
+        </div>
+
+        <div class="pan-card-section" id="pan-card-section">
+            <h2>PAN Card Information</h2>
+            <!-- Add your PAN card information content here -->
+            <p>PAN card information will be displayed here.</p>
+        </div>
+
+        <div class="payments-section" id="payments-section">
+            <h2>Payments</h2>
+            <!-- Add your payments content here -->
+            <p>Payment information will be displayed here.</p>
+        </div>
+
+        <div class="gift-cards-section" id="gift-cards-section">
+            <h2>Gift Cards</h2>
+            <!-- Add your gift cards content here -->
+            <p>Gift cards will be displayed here.</p>
+        </div>
+
+        <div class="saved-upi-section" id="saved-upi-section">
+            <h2>Saved UPI</h2>
+            <!-- Add your saved UPI content here -->
+            <p>Saved UPI information will be displayed here.</p>
+        </div>
+
+        <div class="saved-cards-section" id="saved-cards-section">
+            <h2>Saved Cards</h2>
+            <!-- Add your saved cards content here -->
+            <p>Saved cards will be displayed here.</p>
+        </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show the profile section by default
+            document.getElementById('profile-section').style.display = 'block';
+
+            // Add event listeners to the sidebar links
+            document.getElementById('orders-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('orders-section');
+            });
+
+            document.getElementById('account-settings-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('account-settings-section');
+            });
+
+            document.getElementById('profile-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('profile-section');
+            });
+
+            document.getElementById('address-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('address-section');
+            });
+
+            document.getElementById('pan-card-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('pan-card-section');
+            });
+
+            document.getElementById('payments-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('payments-section');
+            });
+
+            document.getElementById('gift-cards-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('gift-cards-section');
+            });
+
+            document.getElementById('saved-upi-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('saved-upi-section');
+            });
+
+            document.getElementById('saved-cards-link').addEventListener('click', function(event) {
+                event.preventDefault();
+                showSection('saved-cards-section');
+            });
+
+            function showSection(sectionId) {
+                // Hide all sections
+                const sections = document.querySelectorAll('.content > div');
+                sections.forEach(section => {
+                    section.style.display = 'none';
+                });
+
+                // Show the selected section
+                document.getElementById(sectionId).style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
