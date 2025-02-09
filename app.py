@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request ,session , redirect, flash , url_for
+from flask import Flask, render_template, request ,session , redirect , url_for
 from flask_mail import Mail, Message
 import random
 
-import requests
+
 from datetime import date
 
 today = date.today().strftime("%Y-%m-%d")
@@ -199,7 +199,6 @@ def setting():
             }}
         )
 
-        flash("Profile updated successfully!", "success")
         return redirect("/setting")
 
     return render_template(
@@ -212,22 +211,6 @@ def setting():
         edit_mode=False
     )
 
-@app.route('/location')
-def get_location():
-    user_ip = request.remote_addr
-    if user_ip == "127.0.0.1":  # Handle local development case
-        user_ip = requests.get("https://api64.ipify.org?format=json").json()["ip"]
-
-    response = requests.get(f"https://ipinfo.io/{user_ip}/json")
-    data = response.json()
-
-    return {
-        "City": data.get("city"),
-        "State": data.get("region"),
-        "Country": data.get("country"),
-        "pincode": data.get("postal"),
-        "Location": data.get("loc"),
-    }
 
 if __name__ == '__main__':
     app.run(debug=True)
