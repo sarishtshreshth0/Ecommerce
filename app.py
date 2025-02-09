@@ -1,19 +1,14 @@
 from flask import Flask, render_template, request ,session , redirect , url_for
 from flask_mail import Mail, Message
 import random
-
-
 from datetime import date
-
 today = date.today().strftime("%Y-%m-%d")
-
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from flask import Flask, render_template, request ,session , redirect
 from flask_mail import Mail, Message
 import random
 import pymongo
-
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from bson import ObjectId
@@ -39,6 +34,8 @@ db = client['ecommerce']
 db_user = db['user']
 db_otp = db['otp']
 db_contact = db['contact']
+db_product = db['product']
+
 @app.route('/login',methods = ['GET', 'POST'])
 def login():
     if request.method == "POST" :
@@ -156,7 +153,6 @@ def ticket():
 @app.route("/raisedlist",methods = ['GET', 'POST'])
 def listraised():
     list_raised = [i for i in db_contact.find({"Id":session.get('username')})]
-    print(list_raised)
     return render_template("show_raised.html" , raised = list_raised)
 
 @app.route("/address",methods = ['GET', 'POST'])
@@ -211,6 +207,15 @@ def setting():
         edit_mode=False
     )
 
+@app.route("/order",methods = ['GET', 'POST'])
+def order():
+
+    return render_template("orderpage.html")
+
+@app.route("/mobile",methods = ['GET', 'POST'])
+def product_list():
+    product = [i for i in db_product.find()]
+    return render_template("product_list_phone.html", products = product)
 
 if __name__ == '__main__':
     app.run(debug=True)
