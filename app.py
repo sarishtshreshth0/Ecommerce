@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request ,session , redirect
+from flask import Flask, render_template, request ,session , redirect, flash , url_for
 from flask_mail import Mail, Message
 import random
+
+import requests
 from datetime import date
 
 today = date.today().strftime("%Y-%m-%d")
@@ -10,9 +12,11 @@ from pymongo.server_api import ServerApi
 from flask import Flask, render_template, request ,session , redirect
 from flask_mail import Mail, Message
 import random
+import pymongo
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from bson import ObjectId
 uri = "mongodb+srv://sarishtshreshth:openforall@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri, server_api=ServerApi('1'))
 try:
@@ -155,17 +159,75 @@ def listraised():
     print(list_raised)
     return render_template("show_raised.html" , raised = list_raised)
 
-@app.route("/setting",methods = ['GET', 'POST'])
+@app.route("/address",methods = ['GET', 'POST'])
+def address():
+    return render_template("manage_address.html")
+
+@app.route("/setting", methods=['GET', 'POST'])
 def setting():
-    if session.get('username')!=None:
-        name = session['name'].title()
-        data = db_user.find_one({"email":session.get('username')})
-        last_name = data["last"].title()
-        email = session.get('username')
-        m_number = data["m_number"]
-        return render_template("Profile_setting.html",first = name, last = last_name,email = email, m_number = m_number)
-    else:
+    if session.get('username') is None:
         return redirect("/login")
+
+    email = session.get('username')
+    data = db_user.find_one({"email": email})
+
+    if request.method == "POST" and "edit_mode" in request.form:
+        return render_template(
+            "Profile_setting.html",
+            first=data["first"].title(),
+            last=data["last"].title(),
+            gender=data.get("gender", ""),
+            email=email,
+            m_number=data["m_number"],
+            edit_mode=True
+        )
+
+
+    if request.method == "POST" and "save_mode" in request.form:
+        new_first = request.form['first_name'].strip().title()
+        new_last = request.form['last_name'].strip().title()
+        new_m_number = request.form['m_number'].strip()
+        new_gender = request.form.get('gender', '')
+        # Update database
+        db_user.update_one(
+            {"email": email},
+            {"$set": {
+                "first": new_first,
+                "last": new_last,
+                "m_number": new_m_number,
+                "gender": new_gender
+            }}
+        )
+
+        flash("Profile updated successfully!", "success")
+        return redirect("/setting")
+
+    return render_template(
+        "Profile_setting.html",
+        first=data["first"].title(),
+        last=data["last"].title(),
+        gender=data.get("gender", ""),
+        email=email,
+        m_number=data["m_number"],
+        edit_mode=False
+    )
+
+@app.route('/location')
+def get_location():
+    user_ip = request.remote_addr
+    if user_ip == "127.0.0.1":  # Handle local development case
+        user_ip = requests.get("https://api64.ipify.org?format=json").json()["ip"]
+
+    response = requests.get(f"https://ipinfo.io/{user_ip}/json")
+    data = response.json()
+
+    return {
+        "City": data.get("city"),
+        "State": data.get("region"),
+        "Country": data.get("country"),
+        "pincode": data.get("postal"),
+        "Location": data.get("loc"),
+    }
 
 if __name__ == '__main__':
     app.run(debug=True)
