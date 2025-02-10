@@ -11,6 +11,8 @@ import random
 import pymongo
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from urllib.request import urlopen
+from bs4 import BeautifulSoup as bs
 from bson import ObjectId
 uri = "mongodb+srv://sarishtshreshth:openforall@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri, server_api=ServerApi('1'))
@@ -216,6 +218,21 @@ def order():
 def product_list():
     product = [i for i in db_product.find()]
     return render_template("product_list_phone.html", products = product)
+
+@app.route("/searched",methods = ['GET', 'POST'])
+def searched():
+    search = request.args.get('query')
+    pages = 5
+    for i in range(1, pages):
+        url = "https://www.amazon.in/s?k=" + search + "&page=" + str(
+            pages) + "&qid=1739101307&xpid=Yl1RmeYW-0lPo&ref=sr_pg_2"
+        html_url = urlopen(url).read()
+        html_box = bs(html_url, 'html.parser')
+        follow = html_box.find_all('div', {'class': 'a-section aok-relative s-image-fixed-height'})
+        product = []
+        for i in range(len(follow)):
+            product.append({'image': follow[i].img['src'], 'desc': follow[i].img['alt']})
+    return render_template("/searched.html",products = product)
 
 if __name__ == '__main__':
     app.run(debug=True)
