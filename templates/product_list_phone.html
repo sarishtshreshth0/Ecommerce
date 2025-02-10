@@ -162,7 +162,13 @@
                 <li>📶 Bluetooth 5.0</li>
             </ul>
             <div class="buy-options">
-                <button class="btn add-to-cart">🛒 Add to Cart</button>
+                <form action="{{ url_for('add_to_cart') }}" method="POST">
+                    <input type="hidden" name="product_id" value="{{ product._id }}">
+                    <input type="hidden" name="product_name" value="{{ product.name }}">
+                    <input type="hidden" name="product_price" value="{{ product.price }}">
+                    <input type="hidden" name="product_image" value="{{ product.image_url }}">
+                    <button type="submit" class="btn add-to-cart">🛒 Add to Cart</button>
+                </form>
                 <button class="btn buy-now">💰 Buy Now</button>
             </div>
         </div>
