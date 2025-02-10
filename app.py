@@ -325,5 +325,52 @@ def searched():
     products = scrape_flipkart(
         search_query)  # Change to `scrape_flipkart_selenium(search_query)` if JS rendering needed
     return render_template("searched.html", products=products)
+
+@app.route("/add_to_cart", methods=['POST'])
+def add_to_cart():
+    if 'username' not in session:
+        return redirect(url_for("login"))
+    username = session['username']
+    product_id = request.form.get("product_id")
+    product_name = request.form.get("product_name")
+    product_price = request.form.get("product_price")
+    product_image = request.form.get("product_image")
+    existing_item = db_cart.find_one({"username": username, "product_id": product_id})
+    if existing_item:
+        db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": 1}})
+    else:
+        db_cart.insert_one({
+            "username": username,
+            "product_id": product_id,
+            "name": product_name,
+            "price": float(product_price),
+            "image_url": product_image,
+            "quantity": 1
+        })
+    return redirect(url_for("product_list"))
+
+@app.route("/cart", methods=['GET', 'POST'])
+def cart():
+    if 'username' not in session:
+        return redirect("/login")
+    username = session['username']
+    if request.method == "POST":
+        action = request.form.get("action")
+        product_id = request.form.get("product_id")
+        if action == "remove":
+            db_cart.delete_one({"username": username, "product_id": product_id})
+        elif action == "increase":
+            db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": 1}})
+        elif action == "decrease":
+            cart_item = db_cart.find_one({"username": username, "product_id": product_id})
+            if cart_item and cart_item["quantity"] > 1:
+                db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": -1}})
+            else:
+                db_cart.delete_one({"username": username, "product_id": product_id})  # Remove if quantity reaches 0
+        return redirect(url_for("cart"))
+    cart_items = list(db_cart.find({"username": username}))
+    return render_template("cart.html", cart_items=cart_items)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
