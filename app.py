@@ -222,6 +222,7 @@ def product_list():
 def searched():
     search = request.args.get('query')
     pages = 5
+    product = []
     for i in range(1, pages):
         url = "https://www.flipkart.com/search?q=" + search + "&otracker=search&otracker1=search&marketplace=FLIPKART&as-show=on&as=off&page=" + str(
             i)
@@ -237,8 +238,6 @@ def searched():
                 break
             else:
                 follow = html_box.find_all('div', {'class': classes[j]})
-
-        product= []
         for i in range(len(follow)):
             product.append({'image': follow[i].img['src'], 'desc': follow[i].img['alt']})
     return render_template("/searched.html",products = product)
