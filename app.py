@@ -12,6 +12,7 @@ import pymongo
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from urllib.request import urlopen
+import requests
 from bs4 import BeautifulSoup as bs
 uri = "mongodb+srv://sarishtshreshth:openforall@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri, server_api=ServerApi('1'))
@@ -218,29 +219,36 @@ def product_list():
     product = [i for i in db_product.find()]
     return render_template("product_list_phone.html", products = product)
 
-@app.route("/searched",methods = ['GET', 'POST'])
+
+@app.route("/searched", methods=['GET', 'POST'])
 def searched():
     search = request.args.get('query')
     pages = 5
     product = []
-    for i in range(1, pages):
-        url = "https://www.flipkart.com/search?q=" + search + "&otracker=search&otracker1=search&marketplace=FLIPKART&as-show=on&as=off&page=" + str(
-            i)
-        html_url = urlopen(url).read()
-        html_box = bs(html_url, 'html.parser')
-        j = 0
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    for page in range(1, pages):
+        url = f"https://www.flipkart.com/search?q={search}&page={page}"
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            continue  
 
+        html_box = bs(response.text, 'html.parser')
         classes = ['gqcSqV YGE0gZ', "_4WELSP WH5SS-", "_4WELSP"]
-        follow = html_box.find_all('div', {'class': classes[j]})
-        while len(follow) == 0:
-            j += 1
-            if j>=3:
-                break
-            else:
-                follow = html_box.find_all('div', {'class': classes[j]})
-        for i in range(len(follow)):
-            product.append({'image': follow[i].img['src'], 'desc': follow[i].img['alt']})
-    return render_template("/searched.html",products = product)
+        follow = None
 
+        for class_name in classes:
+            follow = html_box.find_all('div', {'class': class_name})
+            if follow:
+                break  
+
+        for item in follow:
+            try:
+                product.append({'image': item.img['src'], 'desc': item.img['alt']})
+            except AttributeError:
+                continue  
+
+    return render_template("searched.html", products=product)
 if __name__ == '__main__':
     app.run(debug=True)
