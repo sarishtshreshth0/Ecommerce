@@ -224,12 +224,22 @@ def searched():
     search = request.args.get('query')
     pages = 5
     for i in range(1, pages):
-        url = "https://www.amazon.in/s?k=" + search + "&page=" + str(
-            pages) + "&qid=1739101307&xpid=Yl1RmeYW-0lPo&ref=sr_pg_2"
+        url = "https://www.flipkart.com/search?q=" + search + "&otracker=search&otracker1=search&marketplace=FLIPKART&as-show=on&as=off&page=" + str(
+            i)
         html_url = urlopen(url).read()
         html_box = bs(html_url, 'html.parser')
-        follow = html_box.find_all('div', {'class': 'a-section aok-relative s-image-fixed-height'})
-        product = []
+        j = 0
+
+        classes = ['gqcSqV YGE0gZ', "_4WELSP WH5SS-", "_4WELSP"]
+        follow = html_box.find_all('div', {'class': classes[j]})
+        while len(follow) == 0:
+            j += 1
+            if j>=3:
+                break
+            else:
+                follow = html_box.find_all('div', {'class': classes[j]})
+
+        product= []
         for i in range(len(follow)):
             product.append({'image': follow[i].img['src'], 'desc': follow[i].img['alt']})
     return render_template("/searched.html",products = product)
