@@ -3,4 +3,6 @@ Flask-Mail
 pymongo
 bs4
 requests
+fake_useragent
+selenium
 gunicorn==20.1.0
