@@ -14,6 +14,11 @@ from pymongo.server_api import ServerApi
 from urllib.request import urlopen
 import requests
 from bs4 import BeautifulSoup as bs
+import random
+import time
+from fake_useragent import UserAgent
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 uri = "mongodb+srv://sarishtshreshth:openforall@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri, server_api=ServerApi('1'))
 try:
@@ -220,35 +225,108 @@ def product_list():
     return render_template("product_list_phone.html", products = product)
 
 
+def get_headers():
+    ua = UserAgent()
+    return {"User-Agent": ua.random}
+
+
+# Function to introduce a random delay
+def random_delay():
+    time.sleep(random.uniform(2, 5))  # Wait between 2 to 5 seconds
+
+
+# Function to get proxy (Optional - Add paid proxy here)
+def get_proxy():
+    proxies = [
+        "http://username:password@proxy_address1:port",
+        "http://username:password@proxy_address2:port"
+    ]
+    return {"http": random.choice(proxies), "https": random.choice(proxies)}
+
+
+# Function to scrape using Requests + BeautifulSoup
+def scrape_flipkart(search_query, pages=5):
+    product_list = []
+
+    session = requests.Session()  # Maintain session cookies
+    for page in range(1, pages + 1):
+        url = f"https://www.flipkart.com/search?q={search_query}&page={page}"
+        headers = get_headers()
+
+        try:
+            response = session.get(url, headers=headers)  # Use session for persistence
+            if response.status_code != 200:
+                continue
+
+            soup = bs(response.text, 'html.parser')
+
+            # Different classes Flipkart uses for products
+            classes = ['gqcSqV YGE0gZ', "_4WELSP WH5SS-", "_4WELSP"]
+            items = None
+
+            for class_name in classes:
+                items = soup.find_all('div', {'class': class_name})
+                if items:
+                    break
+
+            for item in items:
+                try:
+                    product_list.append({
+                        'image': item.img['src'],
+                        'desc': item.img['alt']
+                    })
+                except AttributeError:
+                    continue
+
+            random_delay()  # Wait before next request to avoid detection
+
+        except requests.RequestException as e:
+            print("Request failed:", e)
+            continue
+
+    return product_list
+
+
+# Function to scrape using Selenium (For JavaScript-rendered pages)
+def scrape_flipkart_selenium(search_query):
+    product_list = []
+
+    options = Options()
+    options.headless = True  # Run without opening browser
+    driver = webdriver.Chrome(options=options)
+
+    try:
+        url = f"https://www.flipkart.com/search?q={search_query}"
+        driver.get(url)
+        time.sleep(5)  # Wait for JavaScript to load
+
+        soup = bs(driver.page_source, 'html.parser')
+        items = soup.find_all('div', class_="_4WELSP")  # Adjust this class as needed
+
+        for item in items:
+            try:
+                product_list.append({
+                    'image': item.img['src'],
+                    'desc': item.img['alt']
+                })
+            except AttributeError:
+                continue
+    except Exception as e:
+        print("Selenium error:", e)
+    finally:
+        driver.quit()
+
+    return product_list
+
+
 @app.route("/searched", methods=['GET', 'POST'])
 def searched():
-    search = request.args.get('query')
-    pages = 5
-    product = []
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    for page in range(1, pages):
-        url = f"https://www.flipkart.com/search?q={search}&page={page}"
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            continue  
+    search_query = request.args.get('query')
+    if not search_query:
+        return "No search query provided!", 400
 
-        html_box = bs(response.text, 'html.parser')
-        classes = ['gqcSqV YGE0gZ', "_4WELSP WH5SS-", "_4WELSP"]
-        follow = None
-
-        for class_name in classes:
-            follow = html_box.find_all('div', {'class': class_name})
-            if follow:
-                break  
-
-        for item in follow:
-            try:
-                product.append({'image': item.img['src'], 'desc': item.img['alt']})
-            except AttributeError:
-                continue  
-
-    return render_template("searched.html", products=product)
+    products = scrape_flipkart(
+        search_query)  # Change to `scrape_flipkart_selenium(search_query)` if JS rendering needed
+    return render_template("searched.html", products=products)
 if __name__ == '__main__':
     app.run(debug=True)
