@@ -159,10 +159,11 @@
                 <img src="https://i.ibb.co/s91mfhVg/Whats-App-Image-2025-02-07-at-18-07-30-8c2a4fa9-removebg-preview.png" alt="Logo">
             </div>
             <div class="nav-right">
-                <div class="search-bar">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" placeholder="Search for products, brands, and more">
-                </div>
+                 <form class="search-bar" action="/searched" method="GET">
+        <i class="fas fa-search"></i>
+        <input type="text" id="search-input" name="query" placeholder="Search for products, brands, and more">
+        <button type="submit" style="display: none;"></button>
+    </form>
                 <div>
                     <a href="/setting" style="text-decoration: none; color: inherit;">
                     <i  class="fa-regular fa-user"></i>
