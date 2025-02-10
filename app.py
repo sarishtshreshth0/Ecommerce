@@ -39,7 +39,7 @@ db_user = db['user']
 db_otp = db['otp']
 db_contact = db['contact']
 db_product = db['product']
-
+db_cart = db['cart']
 @app.route('/login',methods = ['GET', 'POST'])
 def login():
     if request.method == "POST" :
