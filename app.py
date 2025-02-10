@@ -5,9 +5,6 @@ from datetime import date
 today = date.today().strftime("%Y-%m-%d")
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from flask import Flask, render_template, request ,session , redirect
-from flask_mail import Mail, Message
-import random
 import pymongo
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
