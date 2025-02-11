@@ -164,7 +164,7 @@
             <div class="buy-options">
                 <form action="{{ url_for('add_to_cart') }}" method="POST">
                     <input type="hidden" name="product_id" value="{{ product._id }}">
-                    <input type="hidden" name="product_name" value="{{ product.name }}">
+                    <input type="hidden" name="product_name" value="{{ product.desc }}">
                     <input type="hidden" name="product_price" value="{{ product.price }}">
                     <input type="hidden" name="product_image" value="{{ product.image }}">
                     <button type="submit" class="btn add-to-cart">🛒 Add to Cart</button>
