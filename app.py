@@ -345,7 +345,7 @@ def add_to_cart():
             "username": username,
             "product_id": product_id,
             "name": product_name,
-            "price": float(product_price),
+            "price": product_price,
             "image_url": product_image,
             "quantity": 1
         })
