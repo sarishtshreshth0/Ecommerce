@@ -272,6 +272,7 @@ def scrape_flipkart(search_query, pages=5):
                         'image': item.img['src'],
                         'desc': item.img['alt']
                     })
+                    db_product.insert_one({'image': item.img['src'], 'desc': item.img['alt']})
                 except AttributeError:
                     continue
 
@@ -306,6 +307,7 @@ def scrape_flipkart_selenium(search_query):
                     'image': item.img['src'],
                     'desc': item.img['alt']
                 })
+
             except AttributeError:
                 continue
     except Exception as e:
