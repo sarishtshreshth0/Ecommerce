@@ -1,659 +1,379 @@
-from flask import Flask , request, render_template_string ,render_template, send_file, session, flash, redirect, url_for
+from flask import Flask, render_template, request ,session , redirect , url_for
+from flask_mail import Mail, Message
+import random
+from datetime import date
+today = date.today().strftime("%Y-%m-%d")
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from PIL import Image, ImageFont, ImageDraw
-import os
-import img2pdf
-import datetime
-from uuid import uuid4
-from random import randint
-
+import pymongo
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from urllib.request import urlopen
+import requests
+from bs4 import BeautifulSoup as bs
+import random
+import time
+from fake_useragent import UserAgent
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 uri = "mongodb+srv://sarishtshreshth:openforall@cluster0.sf3lhpf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-
-# Create a new client and connect to the server
 client = MongoClient(uri, server_api=ServerApi('1'))
-
-# Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
     print(e)
-
-db  = client['frontpage']
-db_college = db['college']
-db_blog = db['blog']
-
-SALT = randint(1, 1000000)
-
 app = Flask(__name__)
-app.config['SECRET_KEY'] = str(SALT)
+app.secret_key = "securemore"
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'saristhshreshth12@gmail.com'
+app.config['MAIL_PASSWORD'] = "emyx zmzd afjf keqh"
+app.config['MAIL_DEFAULT_SENDER'] = 'saristhshreshth12@gmail.com'
+mail = Mail(app)
 
-@app.route('/key')
-def key():
-    return f'{int(7478) ^ int(SALT)}'
-
-admins = {
-    'prince' : key(),
-}
-
-blog_posts = []
-
-@app.route('/login', methods=['GET', 'POST'])
+db = client['ecommerce']
+db_user = db['user']
+db_otp = db['otp']
+db_contact = db['contact']
+db_product = db['product']
+db_cart = db['cart']
+@app.route('/login',methods = ['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
+    if request.method == "POST" :
+        email = request.form['email']
         password = request.form['password']
+        if email and password:
+            check = db_user.find_one({"email":email, "password":password})
+            if check:
+                session['username'] = email
+                return redirect("/")
+            else:
+                return redirect("/login")
+        else:
+            return redirect("/login")
+    else:
+        return render_template("login.html")
+@app.route('/signup',methods = ['GET', 'POST'])
+def signup():
+    if request.method == "POST" :
+        first = request.form['first']
+        session['name'] = first
+        last = request.form['last']
+        m_number = request.form['m_number']
+        email = request.form['email']
+        session['email'] = email
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        if email and password and first and last and confirm_password:
+            db_user.insert_one({"first": first, "last": last, "m_number" :m_number , "email":email, "password":password, "confirm_password":confirm_password})
+            return redirect("/verify")
+        else:
+            return redirect("/signup")
+    else:
+        return render_template("signup.html")
 
-        if username in admins and admins[username] == password:
-            session['admin'] = username
-            flash("Logged in successfully.", "success")
-            return redirect(url_for('admin_dashboard'))
-        flash("Invalid credentials.", "danger")
-    return render_template('login.html')
 
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin_dashboard():
-    if 'admin' not in session:
-        return redirect(url_for('login'))
-
-    if request.method == 'POST':
-        title = request.form['title']
-        content = request.form['content']
-        if not title or not content:
-            flash("Title and content are required.", "danger")
-            return redirect(url_for('admin_dashboard'))
-        blog_posts.append({
-            'id': str(uuid4()),
-            'title': title,
-            'content': content,
-            'author': session['admin'],
-            'media': request.files.get('media'),
-            'date_posted': datetime.datetime.now()
-        })
-        db_blog.insert_one({
-            'title': title,
-            'content': content,
-            'author': session['admin'],
-            'date_posted': datetime.datetime.now()
-        })
-        flash("Blog post added.", "success")
-        return redirect(url_for('admin_dashboard'))
-
-    return render_template('admin.html', blogs=blog_posts)
-
-@app.route('/logout')
+@app.route('/logout',methods = ['GET', 'POST'])
 def logout():
-    session.pop('admin', None)
-    flash("Logged out successfully.", "info")
-    return redirect(url_for('login'))
+    session.pop("username", None)
+    return redirect("/login")
 
-@app.route("/blogs")
-def display_blogs():
-    return render_template("blogs.html", blogs=db_blog.find())
+def send_otp():
+    random_number = random.randint(1000, 9999)
+    session['otp'] = str(random_number)
+    db_otp.insert_one({"otp": str(random_number)})
+    send_mail(random_number)
+    return random_number
 
+def send_mail(stored_otp):
+    msg = Message(
+        subject="Ecommerce Project",
+        recipients=[session['email']],
+        body= "your otp is " + str(stored_otp)
+    )
+    mail.send(msg)
+    return "Mail sent!"
 
+@app.route("/verify", methods=['GET', 'POST'])
+def verify():
+    if request.method == "POST":
+        v1 = request.form.get('v1', '')
+        v2 = request.form.get('v2', '')
+        v3 = request.form.get('v3', '')
+        v4 = request.form.get('v4', '')
 
-@app.route("/search")
-def search():
-    query = request.args.get("q","").lower()
-    collegelist = [p['college'] for p in db_college.find() if query in p['college'].lower()]
-    collegelist = collegelist[0:5]
-    return render_template("_result.html",collegelist = collegelist)
+        entered_otp = int(v1 + v2 + v3 + v4)
+        stored_otp = int(session.get('otp', 0))
 
-#(@app.route("/select/<college>")
-#def select_college(college):
-    # Yeh updated input plus preview trigger return karega
- #   html = f"""
-  #<input type="text" id="college-input" name="college" placeholder="College Name" 
-   #        value="{college}" 
-    #       hx-get="/show" hx-target="#show" hx-trigger="keyup changed delay:0ms"
-     #      hx-include="#user-form" autocomplete="off">
-    
-   # <div hx-get="/show" hx-trigger="load" hx-target="#show" hx-include="#user-form"></div>
-    #"""# auto trigger once loaded
-    #return html) 
+        print("Stored OTP:", stored_otp)
+        print("Entered OTP:", entered_otp)
+        if entered_otp == stored_otp:
+            return redirect("/login")
+        else:
+            return redirect("/signup")
 
-@app.route('/')
+    result = send_otp()
+    print("Generated OTP:", result)
+    return render_template("verify_otp.html")
+
+@app.route("/reset-password", methods=['GET', 'POST'])
+def reset_password():
+    return render_template("reset_password.html")
+
+@app.route("/",methods = ['GET', 'POST'])
 def home():
-    return render_template('index.html')
-
-@app.route('/maker')
-def maker():
-    return render_template('show.html')
-
-@app.route('/maker2')
-def maker2():
-    return render_template('show_2.html')
-
-@app.route('/maker3')
-def maker3():
-    return render_template('show_3.html')
-
-@app.route('/show')
-def show():
-    data = {
-        'name': request.args.get('name', ''),
-        'subject': request.args.get('subject', ''),
-        'rollno': request.args.get('rollno', ''),
-        'session': request.args.get('session', ''),
-        'branch': request.args.get('branch', ''),
-        'subjectcode': request.args.get('subjectcode', ''),
-        'sem': request.args.get('sem', ''),
-        'year': request.args.get('year', ''),
-        'college': request.args.get('college', '')
-    }
-
-    if any(data.values()):
-        return render_template_string("""
-            {% if college %}<h2><p><strong></strong> {{ college }}</p><br></h2>{% endif %}                    
-            {% if name %}<p><strong>Name:</strong> {{ name }}</p><br>{% endif %}
-            {% if branch %}<p><strong>Branch:</strong> {{ branch }}</p><br>{% endif %}
-            {% if year %}<p><strong>Year:</strong> {{ year }}</p><br>{% endif %}
-            {% if sem %}<p><strong>Semester:</strong> {{ sem }}</p><br>{% endif %}
-            {% if rollno %}<p><strong>Roll No:</strong> {{ rollno }}</p><br>{% endif %}
-            {% if subject %}<p><strong>Subject:</strong> {{ subject }}</p><br>{% endif %}
-            {% if subjectcode %}<p><strong>Subject-Code:</strong> {{ subjectcode }}</p><br>{% endif %}
-            {% if session %}<p><strong>Session:</strong> {{ session }}</p><br>{% endif %}
-        """, **data)
-    return ""
-
-@app.route('/show_3')
-def show_3():
-    data = {
-        'name': request.args.get('name', ''),
-        'department': request.args.get('department', ''),
-        'supervisor': request.args.get('supervisor', ''),
-        'supervisor_department': request.args.get('supervisor_department', ''),
-        'title': request.args.get('title', ''),
-        'subtitle': request.args.get('subjectcode', ''),
-        'college': request.args.get('college', ''),
-        'address': request.args.get('address', '')
-    }
-
-    if any(data.values()):
-        return render_template_string("""
-            {% if college %}<h2><p><strong></strong> {{ college }}</p><br></h2>{% endif %}                    
-            {% if name %}<p><strong>Name:</strong> {{ name }}</p><br>{% endif %}
-            {% if department %}<p><strong>Department:</strong> {{ department }}</p><br>{% endif %}
-            {% if supervisor %}<p><strong>Year:</strong> {{ supervisor }}</p><br>{% endif %}
-            {% if supervisor_department %}<p><strong>Supervisor's Department:</strong> {{ supervisor_department }}</p><br>{% endif %}
-            {% if title %}<p><strong>Roll No:</strong> {{ title }}</p><br>{% endif %}
-            {% if subtitle %}<p><strong>Subject:</strong> {{ subtitle }}</p><br>{% endif %}
-            {% if address %}<p><strong>Subject-Code:</strong> {{ address }}</p><br>{% endif %}
-        """, **data)
-    return ""
-
-
-@app.route('/show2')
-def show2():
-    data = {
-        'doctor': request.args.get('doctor', ''),
-        'designation': request.args.get('designation', ''),
-        'contact': request.args.get('contact', ''),
-        'hospital': request.args.get('hospital', ''),
-        'address': request.args.get('address', '')
-
-    }
-
-    if any(data.values()):
-        return render_template_string("""
-            {% if hospital %}<h2><p><strong></strong> {{ hospital }}</p><br></h2>{% endif %}                    
-            {% if doctor %}<p><strong>Doctor:</strong> {{ doctor }}</p><br>{% endif %}
-            {% if designation %}<p><strong>Designation:</strong> {{ designation }}</p><br>{% endif %}
-            {% if contact %}<p><strong>Contact:</strong> {{ contact }}</p><br>{% endif %}
-            {% if address %}<p><strong>Address:</strong> {{ address }}</p><br>{% endif %}
-        """, **data)
-    return ""
-
-
-@app.route("/select/<college>")
-def select_college(college):
-    # Yeh updated input plus preview trigger return karega
-    html = f"""
-    <input type="text" id="college" name="college" placeholder="College Name" 
-           value="{college}" 
-           hx-get="/show" hx-target="#results" hx-trigger="keyup changed delay:0ms"
-           hx-include="#user-form" autocomplete="off">
-    
-    <div hx-get="/show" hx-trigger="load" hx-target="#results" hx-include="#user-form"></div>
-    """# auto trigger once loaded
-    return html
-
-@app.route('/download')
-def generate_certificate():
-    college = request.args.get('college', '')
-    name = request.args.get('name', '')
-    stream = request.args.get('branch', '')
-    year = request.args.get('year', '')
-    sem = request.args.get('sem', '')
-    roll = request.args.get('rollno', '')
-    papername = request.args.get('subject', '')
-    papercode = request.args.get('subjectcode', '')
-    session = request.args.get('session', '')
-    template_path = r"static/Cover.jpg"
-    image = Image.open(template_path)
-    draw = ImageDraw.Draw(image)
-    font_path = r"static/DroidSans-Bold.ttf"
-    # college_font = ImageFont.truetype(font_path, 130)
-    name_font = ImageFont.truetype(font_path, 100)
-    other_font = ImageFont.truetype(font_path, 80)
-    # college_position = (100, 300)
-    # name_position = (1100, 540)
-    # stream_position = (1100, 850)
-    # year_position = (1100, 1170)
-    # sem_position = (1100, 1450)
-    # roll_position = (1100, 1750)
-    # papername_position = (1100, 2000)
-    # papercode_position = (1100, 2350)
-    # session_position = (1100, 2640)
-    i = 0
-    a = [(30, 540), (30, 850), (30, 1170), (30, 1450), (30, 1750), (30, 2000), (30, 2350), (30, 2640)]
-    b =[(1100, 540), (1100, 850), (1100, 1170), (1100, 1450), (1100, 1750), (1100, 2000), (1100, 2350), (1100, 2640)]
-    if college:
-        college_position = (100, 300)
-        college = college.upper()
-        if len(college) <= 32:
-            college_font = ImageFont.truetype(font_path, 130)
-            draw.text(college_position, college, font=college_font, fill="black")
-        elif len(college) > 32 and len(college) <= 60:
-            college_font = ImageFont.truetype(font_path, 100)
-            space = college.rfind(' ', 0, 32 + 1)
-            if space == -1: 
-                first = college[:32]
-                second = college[32:]
-            else:
-                first = college[:space]
-                second = college[space+1:]
-            mid = 1275
-            px_per_char = 60
-            start = mid - (len(first) * px_per_char // 2)
-            draw.text((start, college_position[1]), first, font=college_font, fill="black")
-            draw.text((start, college_position[1] + 100), second, font=college_font, fill="black")
-        else:
-            college_font = ImageFont.truetype(font_path, 80)
-            space = college.rfind(' ', 0, 45 + 1)
-            if space == -1: 
-                first = college[:45]
-                second = college[45:]
-            else:
-                first = college[:space]
-                second = college[space+1:]
-            mid = 1275
-            px_per_char = 51
-            start = mid - (len(first) * px_per_char // 2)
-            draw.text((start, college_position[1]), first, font=college_font, fill="black")
-            draw.text((start, college_position[1] + 100), second, font=college_font, fill="black")
-    
+    name = db_user.find_one({"email":session.get('username')})
     if name:
-        name_position = b[i]
-        draw.text(a[i], "NAME:", font=name_font, fill="black")
-        i += 1
-        name = name.upper()
-        if len(name) <= 30:
-            draw.text(name_position, name, font=name_font, fill="black")
-        else:
-            space = name.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = name[:30]
-                second = name[30:]
-            else:
-                first = name[:space]
-                second = name[space+1:]
-            draw.text(name_position, first, font=name_font, fill="black")
-            draw.text((name_position[0], name_position[1] + 100), second, font=name_font, fill="black")
-    
-    if stream:
-        stream = stream.upper()
-        stream_position = b[i]
-        draw.text(a[i], "STREAM:", font=other_font, fill="black")
-        i += 1
-        if len(stream) > 30:
-            space = stream.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = stream[:30]
-                second = stream[30:]
-            else:
-                first = stream[:space]
-                second = stream[space+1:]
-            draw.text(stream_position, first, font=other_font, fill="black")
-            draw.text((stream_position[0], stream_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(stream_position, stream, font=other_font, fill="black")
-    if year:
-        year = year.upper()
-        year_position = b[i]
-        draw.text(a[i], "YEAR:", font=other_font, fill="black")
-        i += 1
-        if len(year) > 30:
-            space = year.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = year[:30]
-                second = year[30:]
-            else:
-                first = year[:space]
-                second = year[space+1:]
-            draw.text(year_position, first, font=other_font, fill="black")
-            draw.text((year_position[0], year_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(year_position, year, font=other_font, fill="black")
-    if sem:
-        sem = sem.upper()
-        sem_position = b[i]
-        draw.text(a[i], "SEM:", font=other_font, fill="black")
-        i += 1
-        if len(sem) > 30:
-            space = sem.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = sem[:30]
-                second = sem[30:]
-            else:
-                first = sem[:space]
-                second = sem[space+1:]
-            draw.text(sem_position, first, font=other_font, fill="black")
-            draw.text((sem_position[0], sem_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(sem_position, sem, font=other_font, fill="black")
-    if roll:
-        roll = roll.upper()
-        roll_position = b[i]
-        draw.text(a[i], "ROLL:", font=other_font, fill="black")
-        i += 1
-        if len(roll) > 30:
-            space = roll.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = roll[:30]
-                second = roll[30:]
-            else:
-                first = roll[:space]
-                second = roll[space+1:]
-            draw.text(roll_position, first, font=other_font, fill="black")
-            draw.text((roll_position[0], roll_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(roll_position, roll, font=other_font, fill="black")
-    
-    if papername:
-        papername = papername.upper()
-        papername_position = b[i]
-        draw.text(a[i], "PAPER NAME:", font=other_font, fill="black")
-        i += 1
-        if len(papername) > 30:
-            space = papername.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = papername[:30]
-                second = papername[30:]
-            else:
-                first = papername[:space]
-                second = papername[space+1:]
-            draw.text(papername_position, first, font=other_font, fill="black")
-            draw.text((papername_position[0], papername_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(papername_position, papername, font=other_font, fill="black")
+        name = name["first"].title()
+    else:
+        name = "Login"
+    session['name'] = name
+    return render_template("index.html",name = name)
 
-    if papercode:
-        papercode = papercode.upper()
-        papercode_position = b[i]
-        draw.text(a[i], "PAPER CODE:", font=other_font, fill="black")
-        i += 1
-        if len(papercode) > 30:
-            space = papercode.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = papercode[:30]
-                second = papercode[30:]
-            else:
-                first = papercode[:space]
-                second = papercode[space+1:]
-            draw.text(papercode_position, first, font=other_font, fill="black")
-            draw.text((papercode_position[0], papercode_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(papercode_position, papercode, font=other_font, fill="black")
-    if session:
-        session_position = b[i]
-        draw.text(a[i], "SESSION:", font=other_font, fill="black")
-        i += 1
-        session = session.upper()
-        if len(session) > 30:
-            space = session.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = session[:30]
-                second = session[30:]
-            else:
-                first = session[:space]
-                second = session[space+1:]
-            draw.text(session_position, first, font=other_font, fill="black")
-            draw.text((session_position[0], session_position[1] + 100), second, font=other_font, fill="black")
-        else:
-            draw.text(session_position, session, font=other_font, fill="black")
+@app.route("/contact",methods = ['GET', 'POST'])
+def contact():
+    if request.method == "POST":
+        message = request.form['message']
+        msg = Message(
+            subject="Ecommerce Project",
+            recipients=[session['username']],
+            body= message
+        )
+        mail.send(msg)
+        db_contact.insert_one({"Id": session['username'],"issue": message ,"status": 'Pending', "raiseBy":session.get('name') , 'date' : today})
+        return redirect("/ticketraise")
+    name = session.get('name', 'Login')
+    email = session.get('username', "Login")
+    return render_template("contact_us.html",name = name , email = email)
 
-    image.save(r'static/preview.jpg')
-    print(f"Cover for {name}")
-    img_path = r"static/preview.jpg"
-    pdf_path = r"static/preview.pdf"
-    image = Image.open(img_path)
-    pdf_bytes = img2pdf.convert(image.filename)
-    file = open(pdf_path, "wb")
-    file.write(pdf_bytes)
-    image.close()
-    file.close()
-    return send_file(pdf_path, as_attachment=True)
-@app.route('/download_prescription')
-def generate_prescription():
-    template_path = r'static/prescription_2.jpeg'
-    output_path = r'static/prescription.png'
-    font_path = r'static/DroidSans-Bold.ttf'
-    image = Image.open(template_path)
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(font_path, 30)
-    name_position = (20, 10)
-    designation_position = (20, 50)
-    contact_position = (20, 90)
-    hospital_position = (750, 10)
-    address_position = (750, 50)
-    # logo_position = (450, 10)
-    name = request.args.get('doctor', '')
-    designation = request.args.get('designation', '')
-    contact = request.args.get('contact', '')
-    hospital = request.args.get('hospital', '')
-    address = request.args.get('address', '')
-    # logo = Image.open(r'static/logo.png')
-    draw.text(name_position, name, font=font, fill="black")
-    draw.text(designation_position, designation, font=font, fill="black")
-    draw.text(contact_position, contact, font=font, fill="black")
-    draw.text(hospital_position, hospital, font=font, fill="black")
-    draw.text(address_position, address, font=font, fill="black")
-    # image.paste(logo, logo_position, logo)
-    image.save(output_path)
-    pdf_path = r"static/preview.pdf"
-    image = Image.open(output_path)
-    pdf_bytes = img2pdf.convert(image.filename)
-    file = open(pdf_path, "wb")
-    file.write(pdf_bytes)
-    image.close()
-    file.close()
-    return send_file(pdf_path, as_attachment=True)
+@app.route("/ticketraise",methods = ['GET', 'POST'])
+def ticket():
+    Id = db_contact.count_documents({})
+    return render_template("ticket_raised.html" , Id = Id)
 
-@app.route('/download_thesis')
-def generate_thesis():
-    template_path = r'static/Thesis_2.jpeg'
-    output_path = r'static/Thesis.png'
-    font_path = r'static/DroidSans-Bold.ttf'
-    image = Image.open(template_path)
-    draw = ImageDraw.Draw(image)
-    # logo = Image.open(r'static/logo.png')
-    font = ImageFont.truetype(font_path, 30)
-    title_font = ImageFont.truetype(font_path, 60)
-    subtitle_font = ImageFont.truetype(font_path, 40)
-    # logo_position = (300, 810)
+@app.route("/raisedlist",methods = ['GET', 'POST'])
+def listraised():
+    list_raised = [i for i in db_contact.find({"Id":session.get('username')})]
+    return render_template("show_raised.html" , raised = list_raised)
 
-    name = request.args.get('name', ''),
-    department = request.args.get('department', ''),
-    supervisor = request.args.get('supervisor', ''),
-    supervisor_department = request.args.get('supervisor_department', ''),
-    title = request.args.get('title', ''),
-    subtitle = request.args.get('subjectcode', ''),
-    college = request.args.get('college', ''),
-    address = request.args.get('address', '')
+@app.route("/address",methods = ['GET', 'POST'])
+def address():
+    return render_template("manage_address.html")
 
-    if title:
-        title_position = (350, 150)
-        title = title.upper()
-        if len(title) <= 30:
-            draw.text(title_position, title, font=title_font, fill="black")
-        else:
-            space = title.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = title[:30]
-                second = title[30:]
+@app.route("/setting", methods=['GET', 'POST'])
+def setting():
+    if session.get('username') is None:
+        return redirect("/login")
+
+    email = session.get('username')
+    data = db_user.find_one({"email": email})
+
+    if request.method == "POST" and "edit_mode" in request.form:
+        return render_template(
+            "Profile_setting.html",
+            first=data["first"].title(),
+            last=data["last"].title(),
+            gender=data.get("gender", ""),
+            email=email,
+            m_number=data["m_number"],
+            edit_mode=True
+        )
+
+
+    if request.method == "POST" and "save_mode" in request.form:
+        new_first = request.form['first_name'].strip().title()
+        new_last = request.form['last_name'].strip().title()
+        new_m_number = request.form['m_number'].strip()
+        new_gender = request.form.get('gender', '')
+        # Update database
+        db_user.update_one(
+            {"email": email},
+            {"$set": {
+                "first": new_first,
+                "last": new_last,
+                "m_number": new_m_number,
+                "gender": new_gender
+            }}
+        )
+
+        return redirect("/setting")
+
+    return render_template(
+        "Profile_setting.html",
+        first=data["first"].title(),
+        last=data["last"].title(),
+        gender=data.get("gender", ""),
+        email=email,
+        m_number=data["m_number"],
+        edit_mode=False
+    )
+
+@app.route("/order",methods = ['GET', 'POST'])
+def order():
+
+    return render_template("orderpage.html")
+
+@app.route("/mobile",methods = ['GET', 'POST'])
+def product_list():
+    product = [i for i in db_product.find()]
+    return render_template("product_list_phone.html", products = product)
+
+
+def get_headers():
+    ua = UserAgent()
+    return {"User-Agent": ua.random}
+
+
+# Function to introduce a random delay
+def random_delay():
+    time.sleep(random.uniform(2, 5))  # Wait between 2 to 5 seconds
+
+
+# Function to get proxy (Optional - Add paid proxy here)
+def get_proxy():
+    proxies = [
+        "http://username:password@proxy_address1:port",
+        "http://username:password@proxy_address2:port"
+    ]
+    return {"http": random.choice(proxies), "https": random.choice(proxies)}
+
+
+# Function to scrape using Requests + BeautifulSoup
+def scrape_flipkart(search_query, pages=5):
+    product_list = []
+
+    session = requests.Session()  # Maintain session cookies
+    for page in range(1, pages + 1):
+        url = f"https://www.flipkart.com/search?q={search_query}&page={page}"
+        headers = get_headers()
+
+        try:
+            response = session.get(url, headers=headers)  # Use session for persistence
+            if response.status_code != 200:
+                continue
+
+            soup = bs(response.text, 'html.parser')
+
+            # Different classes Flipkart uses for products
+            classes = ['gqcSqV YGE0gZ', "_4WELSP WH5SS-", "_4WELSP"]
+            items = None
+
+            for class_name in classes:
+                items = soup.find_all('div', {'class': class_name})
+                if items:
+                    break
+
+            for item in items:
+                try:
+                    product_list.append({
+                        'image': item.img['src'],
+                        'desc': item.img['alt']
+                    })
+                    db_product.insert_one({'image': item.img['src'], 'desc': item.img['alt']})
+                except AttributeError:
+                    continue
+
+            random_delay()  # Wait before next request to avoid detection
+
+        except requests.RequestException as e:
+            print("Request failed:", e)
+            continue
+
+    return product_list
+
+
+# Function to scrape using Selenium (For JavaScript-rendered pages)
+def scrape_flipkart_selenium(search_query):
+    product_list = []
+
+    options = Options()
+    options.headless = True  # Run without opening browser
+    driver = webdriver.Chrome(options=options)
+
+    try:
+        url = f"https://www.flipkart.com/search?q={search_query}"
+        driver.get(url)
+        time.sleep(5)  # Wait for JavaScript to load
+
+        soup = bs(driver.page_source, 'html.parser')
+        items = soup.find_all('div', class_="_4WELSP")  # Adjust this class as needed
+
+        for item in items:
+            try:
+                product_list.append({
+                    'image': item.img['src'],
+                    'desc': item.img['alt']
+                })
+
+            except AttributeError:
+                continue
+    except Exception as e:
+        print("Selenium error:", e)
+    finally:
+        driver.quit()
+
+    return product_list
+
+
+@app.route("/searched", methods=['GET', 'POST'])
+def searched():
+    search_query = request.args.get('query')
+    if not search_query:
+        return "No search query provided!", 400
+
+    products = scrape_flipkart(
+        search_query)  # Change to `scrape_flipkart_selenium(search_query)` if JS rendering needed
+    return render_template("searched.html", products=products)
+
+@app.route("/add_to_cart", methods=['POST'])
+def add_to_cart():
+    if 'username' not in session:
+        return redirect(url_for("login"))
+    username = session['username']
+    product_id = request.form.get("product_id")
+    product_name = request.form.get("product_name")
+    product_price = request.form.get("product_price")
+    product_image = request.form.get("product_image")
+    existing_item = db_cart.find_one({"username": username, "product_id": product_id})
+    if existing_item:
+        db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": 1}})
+    else:
+        db_cart.insert_one({
+            "username": username,
+            "product_id": product_id,
+            "name": product_name,
+            "price": float(product_price),
+            "price": product_price,
+            "image_url": product_image,
+            "quantity": 1
+        })
+    return redirect(url_for("product_list"))
+
+@app.route("/cart", methods=['GET', 'POST'])
+def cart():
+    if 'username' not in session:
+        return redirect("/login")
+    username = session['username']
+    if request.method == "POST":
+        action = request.form.get("action")
+        product_id = request.form.get("product_id")
+        if action == "remove":
+            db_cart.delete_one({"username": username, "product_id": product_id})
+        elif action == "increase":
+            db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": 1}})
+        elif action == "decrease":
+            cart_item = db_cart.find_one({"username": username, "product_id": product_id})
+            if cart_item and cart_item["quantity"] > 1:
+                db_cart.update_one({"username": username, "product_id": product_id}, {"$inc": {"quantity": -1}})
             else:
-                first = title[:space]
-                second = title[space+1:]
-            draw.text(title_position, first, font=font, fill="black")
-            draw.text((title_position[0], title_position[1] + 100), second, font=title_font, fill="black")
-    
-    if subtitle:
-        subtitle_position = (350, 250)
-        subtitle = subtitle.upper()
-        if len(subtitle) <= 30:
-            draw.text(subtitle_position, subtitle, font=subtitle_font, fill="black")
-        else:
-            space = subtitle.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = subtitle[:30]
-                second = subtitle[30:]
-            else:
-                first = subtitle[:space]
-                second = subtitle[space+1:]
-            draw.text(subtitle_position, first, font=font, fill="black")
-            draw.text((subtitle_position[0], subtitle_position[1] + 100), second, font=subtitle_font, fill="black")
+                db_cart.delete_one({"username": username, "product_id": product_id})  # Remove if quantity reaches 0
+        return redirect(url_for("cart"))
+    cart_items = list(db_cart.find({"username": username}))
+    return render_template("cart.html", cart_items=cart_items)
 
-    if department:
-        department_position = (350, 520)
-        department = department.upper()
-        if len(department) <= 30:
-            draw.text(department_position, department, font=font, fill="black")
-        else:
-            space = department.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = department[:30]
-                second = department[30:]
-            else:
-                first = department[:space]
-                second = department[space+1:]
-            draw.text(department_position, first, font=font, fill="black")
-            draw.text((department_position[0], department_position[1] + 100), second, font=font, fill="black")
-
-    if supervisor:
-        supervisor_position = (350, 650)
-        supervisor = supervisor.upper()
-        if len(supervisor) <= 30:
-            draw.text(supervisor_position, supervisor, font=font, fill="black")
-        else:
-            space = supervisor.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = supervisor[:30]
-                second = supervisor[30:]
-            else:
-                first = supervisor[:space]
-                second = supervisor[space+1:]
-            draw.text(supervisor_position, first, font=font, fill="black")
-            draw.text((supervisor_position[0], supervisor_position[1] + 100), second, font=font, fill="black")
-
-    if supervisor_department:
-        supervisor_department_position = (350, 720)
-        supervisor_department = supervisor_department.upper()
-        if len(supervisor_department) <= 30:
-            draw.text(supervisor_department_position, supervisor_department, font=font, fill="black")
-        else:
-            space = supervisor_department.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = supervisor_department[:30]
-                second = supervisor_department[30:]
-            else:
-                first = supervisor_department[:space]
-                second = supervisor_department[space+1:]
-            draw.text(supervisor_department_position, first, font=font, fill="black")
-            draw.text((supervisor_department_position[0], supervisor_department_position[1] + 100), second, font=font, fill="black")
-
-    if address:
-        address_position = (350, 1120)
-        address = address.upper()
-        if len(address) <= 30:
-            draw.text(address_position, address, font=font, fill="black")
-        else:
-            space = address.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = address[:30]
-                second = address[30:]
-            else:
-                first = address[:space]
-                second = address[space+1:]
-            draw.text(address_position, first, font=font, fill="black")
-            draw.text((address_position[0], address_position[1] + 50), second, font=font, fill="black")
-    
-
-    if college:
-        college_position = (350, 1050)
-        college = college.upper()
-        if len(college) <= 32:
-            draw.text(college_position, college, font=font, fill="black")
-        elif len(college) > 32 and len(college) <= 60:
-            college_font = ImageFont.truetype(font_path, 30)
-            space = college.rfind(' ', 0, 32 + 1)
-            if space == -1: 
-                first = college[:32]
-                second = college[32:]
-            else:
-                first = college[:space]
-                second = college[space+1:]
-            mid = 1275
-            px_per_char = 60
-            start = mid - (len(first) * px_per_char // 2)
-            draw.text((start, college_position[1]), first, font=college_font, fill="black")
-            draw.text((start, college_position[1] + 100), second, font=college_font, fill="black")
-        else:
-            college_font = ImageFont.truetype(font_path, 25)
-            space = college.rfind(' ', 0, 45 + 1)
-            if space == -1: 
-                first = college[:45]
-                second = college[45:]
-            else:
-                first = college[:space]
-                second = college[space+1:]
-            mid = 1275
-            px_per_char = 51
-            start = mid - (len(first) * px_per_char // 2)
-            draw.text((start, college_position[1]), first, font=college_font, fill="black")
-            draw.text((start, college_position[1] + 100), second, font=college_font, fill="black")
-
-    if name:
-        name_position = (350, 450)
-        name = name.upper()
-        if len(name) <= 30:
-            draw.text(name_position, name, font=font, fill="black")
-        else:
-            space = name.rfind(' ', 0, 30 + 1)
-            if space == -1: 
-                first = name[:30]
-                second = name[30:]
-            else:
-                first = name[:space]
-                second = name[space+1:]
-            draw.text(name_position, first, font=font, fill="black")
-            draw.text((name_position[0], name_position[1] + 100), second, font=font, fill="black")
-
-    # logo = logo.resize((600, 150))
-    # image.paste(logo, logo_position, logo)
-    image.save(output_path)
-    print(f"Cover for {name} saved at {output_path}")
-    pdf_path = r"static/preview.pdf"
-    image = Image.open(output_path)
-    pdf_bytes = img2pdf.convert(image.filename)
-    file = open(pdf_path, "wb")
-    file.write(pdf_bytes)
-    image.close()
-    file.close()
-    return send_file(pdf_path, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
